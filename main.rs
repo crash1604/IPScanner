@@ -5,6 +5,8 @@ use std::thread;
 use std::time::Duration;
 use clap::{App, Arg};
 
+
+// main function
 fn main() {
     let matches = App::new("Rust IP Scanner")
         .version("1.0")
@@ -45,27 +47,32 @@ fn main() {
         )
         .get_matches();
 
+    // assign values and variables from args
     let start_ip = matches.value_of("start_ip").unwrap();
     let end_ip = matches.value_of("end_ip").unwrap();
     let ports_str = matches.value_of("ports").unwrap();
     let timeout = matches.value_of("timeout").unwrap().parse::<u64>().unwrap();
     let threads = matches.value_of("threads").unwrap().parse::<u32>().unwrap();
 
+    // list of ports in var vec of u16
     let ports: Vec<u16> = ports_str
         .split(',')
         .map(|p| p.trim().parse::<u16>().unwrap())
         .collect();
-
+    
+    // generic print statements
     println!("Starting scan from {} to {}", start_ip, end_ip);
     println!("Scanning ports: {:?}", ports);
     println!("Timeout: {}ms, Threads: {}", timeout, threads);
 
+    // assign start and end date
     let start = ip_to_u32(start_ip).unwrap();
     let end = ip_to_u32(end_ip).unwrap();
 
     let (tx, rx) = channel();
     let mut active_threads = 0;
 
+    // loop 
     for ip_num in start..=end {
         let ip = u32_to_ip(ip_num);
         let ports = ports.clone();
