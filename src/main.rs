@@ -59,6 +59,11 @@ fn main() {
     let end = ip_to_u32(end_ip).unwrap();
     let timeout = Duration::from_millis(timeout);
 
+    if start > end {
+    eprintln!("Start IP must be less than or equal to End IP");
+    return;
+}
+
     let pool = ThreadPool::new(threads);
     let ports = Arc::new(ports);
     let results = Arc::new(Mutex::new(Vec::new()));
@@ -77,6 +82,7 @@ fn main() {
             let open_ports = scan_ip(ip, &ports, timeout);
             if !open_ports.is_empty() {
                 let mut r = results.lock().unwrap();
+                println!("IP: {}, Open Ports: {:?}", ip, open_ports);
                 r.push(ScanResult { ip, open_ports });
             }
         });
