@@ -148,3 +148,48 @@ fn u32_to_ip(ip_num: u32) -> IpAddr {
     ];
     IpAddr::from(octets)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::IpAddr;
+
+    #[test]
+    fn test_ip_to_u32_and_back() {
+        let ip_str = "192.168.1.1";
+        let ip_u32 = ip_to_u32(ip_str).unwrap();
+        let ip_back = u32_to_ip(ip_u32);
+
+        assert_eq!(IpAddr::from_str(ip_str).unwrap(), ip_back);
+    }
+
+    #[test]
+    fn test_ip_to_u32_valid() {
+        assert_eq!(ip_to_u32("0.0.0.0").unwrap(), 0);
+        assert_eq!(ip_to_u32("255.255.255.255").unwrap(), u32::MAX);
+        assert_eq!(ip_to_u32("10.0.0.1").unwrap(), (10 << 24) + 1);
+    }
+
+    #[test]
+    fn test_ip_to_u32_invalid() {
+        assert!(ip_to_u32("999.999.999.999").is_none());
+        assert!(ip_to_u32("abc.def.ghi.jkl").is_none());
+        assert!(ip_to_u32("::1").is_none()); // IPv6 not supported
+    }
+
+    #[test]
+    fn test_ports_parsing() {
+        let ports_str = "80,443,22,3389";
+        let ports: Vec<u16> = ports_str
+            .split(',')
+            .map(|p| p.trim().parse::<u16>().unwrap())
+            .collect();
+        assert_eq!(ports, vec![80, 443, 22, 3389]);
+    }
+
+    #[test]
+    fn test_u32_to_ip() {
+        let ip = u32_to_ip(0xC0A80101); // 192.168.1.1
+        assert_eq!(ip.to_string(), "192.168.1.1");
+    }
+}
