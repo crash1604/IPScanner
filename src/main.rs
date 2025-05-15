@@ -1,12 +1,12 @@
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::str::FromStr;
-use std::sync::mpsc::{channel};
-use std::thread;
 use std::time::Duration;
 use clap::{App, Arg};
+use threadpool::ThreadPool;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-
-// main function
+// Main function
 fn main() {
     let matches = App::new("Rust IP Scanner")
         .version("1.0")
@@ -47,65 +47,64 @@ fn main() {
         )
         .get_matches();
 
-    // assign values and variables from args
     let start_ip = matches.value_of("start_ip").unwrap();
     let end_ip = matches.value_of("end_ip").unwrap();
     let ports_str = matches.value_of("ports").unwrap();
     let timeout = matches.value_of("timeout").unwrap().parse::<u64>().unwrap();
-    let threads = matches.value_of("threads").unwrap().parse::<u32>().unwrap();
+    let threads = matches.value_of("threads").unwrap().parse::<usize>().unwrap();
 
-    // list of ports in var vec of u16
     let ports: Vec<u16> = ports_str
         .split(',')
         .map(|p| p.trim().parse::<u16>().unwrap())
         .collect();
-    
-    // generic print statements
+
     println!("Starting scan from {} to {}", start_ip, end_ip);
     println!("Scanning ports: {:?}", ports);
     println!("Timeout: {}ms, Threads: {}", timeout, threads);
 
-    // assign start and end date
     let start = ip_to_u32(start_ip).unwrap();
     let end = ip_to_u32(end_ip).unwrap();
+    let timeout = Duration::from_millis(timeout);
 
-    let (tx, rx) = channel();
-    let mut active_threads = 0;
+    let pool = ThreadPool::new(threads);
+    let ports = Arc::new(ports);
+    let results = Arc::new(Mutex::new(Vec::new())); // For storing output
 
-    // loop 
     for ip_num in start..=end {
         let ip = u32_to_ip(ip_num);
-        let ports = ports.clone();
-        let tx = tx.clone();
-        let timeout = Duration::from_millis(timeout);
+        let ports = Arc::clone(&ports);
+        let timeout = timeout.clone();
+        let results = Arc::clone(&results);
 
-        // Wait if we've reached the thread limit
-        while active_threads >= threads {
-            active_threads = rx.recv().unwrap();
-        }
-
-        active_threads += 1;
-        thread::spawn(move || {
-            scan_ip(ip, &ports, timeout);
-            tx.send(active_threads - 1).unwrap();
+        pool.execute(move || {
+            let open_ports = scan_ip(ip, &ports, timeout);
+            if !open_ports.is_empty() {
+                let mut r = results.lock().unwrap();
+                r.push((ip, open_ports));
+            }
         });
     }
 
-    // Wait for all threads to complete
-    while active_threads > 0 {
-        active_threads = rx.recv().unwrap();
+    pool.join(); // Wait for all threads to complete
+
+    // Print final results
+    let results = results.lock().unwrap();
+    for (ip, open_ports) in results.iter() {
+        println!("{} is active. Open ports: {:?}", ip, open_ports);
     }
 
     println!("Scan completed!");
 }
 
-fn scan_ip(ip: IpAddr, ports: &[u16], timeout: Duration) {
+fn scan_ip(ip: IpAddr, ports: &[u16], timeout: Duration) -> Vec<u16> {
+    let mut open = Vec::new();
     for &port in ports {
         let socket = SocketAddr::new(ip, port);
         if TcpStream::connect_timeout(&socket, timeout).is_ok() {
-            println!("{}:{} is open", ip, port);
+            open.push(port);
         }
     }
+    open
 }
 
 fn ip_to_u32(ip_str: &str) -> Option<u32> {
@@ -120,7 +119,7 @@ fn ip_to_u32(ip_str: &str) -> Option<u32> {
                 (octets[3] as u32)
             )
         }
-        IpAddr::V6(_) => None, // IPv6 not supported in this simple scanner
+        IpAddr::V6(_) => None,
     }
 }
 

@@ -2,7 +2,7 @@
 name = "ipscanner"
 version = "0.1.0"
 edition = "2021"
-
 [dependencies]
+threadpool = "1.8"
 tokio = { version = "1", features = ["full"] }
 clap = { version = "2", features = ["yaml"] }  # Add this line
