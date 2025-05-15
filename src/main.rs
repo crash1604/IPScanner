@@ -1,6 +1,6 @@
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::str::FromStr;
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{channel};
 use std::thread;
 use std::time::Duration;
 use clap::{App, Arg};
@@ -113,10 +113,12 @@ fn ip_to_u32(ip_str: &str) -> Option<u32> {
     match ip {
         IpAddr::V4(v4) => {
             let octets = v4.octets();
-            Some((octets[0] as u32) << 24 |
+            Some(
+                (octets[0] as u32) << 24 |
                 (octets[1] as u32) << 16 |
                 (octets[2] as u32) << 8 |
                 (octets[3] as u32)
+            )
         }
         IpAddr::V6(_) => None, // IPv6 not supported in this simple scanner
     }
